@@ -2,10 +2,13 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { ChatMessage, Product } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { getRecommendations } from '../utils/recommendationEngine';
+import { getAiRecommendations, analyzeQuery } from '../services/gemini';
+import { fetchProducts } from '../services/productService';
+import { isRateLimitError, getApiErrorMessage } from '../utils/apiErrorUtils';
 
 interface ChatContextType {
   messages: ChatMessage[];
-  sendMessage: (text: string) => void;
+  sendMessage: (text: string) => Promise<void>;
   isTyping: boolean;
   clearChat: () => void;
 }
@@ -20,7 +23,7 @@ export const ChatProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   useEffect(() => {
     const welcomeMessage: ChatMessage = {
       id: uuidv4(),
-      text: "Hi! I'm your personal shopping assistant for Indian D2C food and fashion products. What are you looking for today?",
+      text: "Namaste! 🙏 I'm your BharatShop AI assistant, powered by Google Gemini 2.0. I'm here to help you discover amazing Indian D2C food and fashion products. What are you looking for today? You can ask me about vegan snacks, traditional outfits, or anything else that interests you!",
       sender: 'bot',
       timestamp: new Date(),
     };
@@ -30,7 +33,7 @@ export const ChatProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   const clearChat = () => {
     const welcomeMessage: ChatMessage = {
       id: uuidv4(),
-      text: "Hi! I'm your personal shopping assistant for Indian D2C food and fashion products. What are you looking for today?",
+      text: "Namaste! 🙏 I'm your BharatShop AI assistant, powered by Google Gemini 2.0. I'm here to help you discover amazing Indian D2C food and fashion products. What are you looking for today? You can ask me about vegan snacks, traditional outfits, or anything else that interests you!",
       sender: 'bot',
       timestamp: new Date(),
     };
@@ -53,7 +56,7 @@ export const ChatProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     return responseIntros[Math.floor(Math.random() * responseIntros.length)];
   };
 
-  const sendMessage = (text: string) => {
+  const sendMessage = async (text: string) => {
     // Add user message
     const userMessage: ChatMessage = {
       id: uuidv4(),
@@ -65,25 +68,52 @@ export const ChatProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     setMessages(prev => [...prev, userMessage]);
     setIsTyping(true);
     
-    // Simulate bot thinking time (between 1-2 seconds)
-    setTimeout(() => {
+    try {
       // Get recommendations based on user message
-      const recommendations = getRecommendations(text);
+      const recommendations = await getRecommendations(text);
+      
+      // Get AI response from Gemini
+      const aiResponse = await getAiRecommendations(text);
       
       // Create bot response with recommendations
-      const botResponse = generateBotResponse(text, recommendations);
-      
       const botMessage: ChatMessage = {
         id: uuidv4(),
-        text: botResponse,
+        text: aiResponse,
         sender: 'bot',
         timestamp: new Date(),
         recommendations
       };
       
       setMessages(prev => [...prev, botMessage]);
+    } catch (error: any) {
+      console.error('Error getting AI response:', error);
+      
+      // Get fallback recommendations using product service
+      const fallbackProducts = await fetchProducts('popular', {});
+      const recommendationsWithScore = fallbackProducts.slice(0, 4).map((product: Product) => ({
+        ...product,
+        matchPercentage: 50,
+        matchReason: 'Recommended based on popularity'
+      }));
+      
+      // Get a user-friendly error message
+      const errorMessage = getApiErrorMessage(error);
+      
+      // Create error response message
+      const botErrorMessage: ChatMessage = {
+        id: uuidv4(),
+        text: isRateLimitError(error) 
+          ? "I'm experiencing high demand right now. Please try again in a moment." 
+          : `Sorry, I encountered an issue: ${errorMessage}. Here are some popular products you might like:`,
+        sender: 'bot',
+        timestamp: new Date(),
+        recommendations: recommendationsWithScore
+      };
+      
+      setMessages(prev => [...prev, botErrorMessage]);
+    } finally {
       setIsTyping(false);
-    }, 1000 + Math.random() * 1000);
+    }
   };
 
   return (

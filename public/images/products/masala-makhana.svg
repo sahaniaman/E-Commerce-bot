@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="400" height="400" viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="400" height="400" fill="#FFF4E6"/>
+  <circle cx="200" cy="200" r="80" fill="#FFDFB8"/>
+  <path d="M170 180C170 168.954 178.954 160 190 160H210C221.046 160 230 168.954 230 180V220C230 231.046 221.046 240 210 240H190C178.954 240 170 231.046 170 220V180Z" fill="#FFD192"/>
+  <circle cx="190" cy="190" r="5" fill="#FF9933"/>
+  <circle cx="210" cy="190" r="5" fill="#FF9933"/>
+  <circle cx="200" cy="210" r="5" fill="#FF9933"/>
+  <circle cx="185" cy="205" r="3" fill="#FF9933"/>
+  <circle cx="215" cy="205" r="3" fill="#FF9933"/>
+  <circle cx="190" cy="220" r="3" fill="#FF9933"/>
+  <circle cx="210" cy="220" r="3" fill="#FF9933"/>
+  <circle cx="200" cy="225" r="3" fill="#FF9933"/>
+  <text x="200" y="280" text-anchor="middle" font-family="Arial" font-size="16" font-weight="bold" fill="#14142B">Masala Makhana</text>
+</svg>

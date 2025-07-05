@@ -1,0 +1,604 @@
+import axios from 'axios';
+import { Product } from '../types';
+import { products as mockProducts } from '../data/products';
+
+// List of available product data sources (only mock data for now)
+export const PRODUCT_SOURCES = {
+  MOCK: 'mock' // Only using mock data for now
+};
+
+/**
+ * Fetches products from mock data
+ * 
+ * @param query The search query
+ * @param filters Additional filters to apply
+ * @returns A promise that resolves to an array of products
+ */
+export const fetchProducts = async (
+  query: string,
+  filters: Record<string, any> = {}
+): Promise<Product[]> => {
+  try {
+    // Log search query for debugging
+    console.log('Searching with query:', query, 'and filters:', filters);
+    
+    // Filter mock products based on the query and filters
+    let filteredProducts = [...mockProducts];
+    
+    // Apply query filter if provided
+    if (query) {
+      const searchTerms = query.toLowerCase().split(' ');
+      filteredProducts = filteredProducts.filter(product => {
+        const searchableText = `${product.name} ${product.description} ${product.category} ${product.subCategory} ${product.tags.join(' ')}`.toLowerCase();
+        return searchTerms.some(term => searchableText.includes(term));
+      });
+    }
+    
+    // Apply category filter if provided
+    if (filters.category) {
+      filteredProducts = filteredProducts.filter(product => 
+        product.category.toLowerCase() === filters.category.toLowerCase()
+      );
+    }
+    
+    // Apply price range filter if provided
+    if (filters.priceRange) {
+      const [minPrice, maxPrice] = filters.priceRange;
+      if (minPrice !== undefined) {
+        filteredProducts = filteredProducts.filter(product => product.price >= minPrice);
+      }
+      if (maxPrice !== undefined) {
+        filteredProducts = filteredProducts.filter(product => product.price <= maxPrice);
+      }
+    }
+    
+    // Add source and last updated information
+    return filteredProducts.map(product => ({
+      ...product,
+      source: PRODUCT_SOURCES.MOCK,
+      lastUpdated: new Date()
+    }));
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    return mockProducts.map(product => ({
+      ...product,
+      source: PRODUCT_SOURCES.MOCK,
+      lastUpdated: new Date()
+    }));
+  }
+};
+): Promise<Product[]> => {
+  try {
+    // Fetch products from all specified sources in parallel
+    const productPromises = sources.map(source => 
+      fetchProductsFromSource(source, query, filters)
+    );
+    
+    // Wait for all promises to resolve
+    const productsFromAllSources = await Promise.all(productPromises);
+    
+    // Flatten the array of arrays
+    const allProducts = productsFromAllSources.flat();
+    
+    // Add last updated timestamp
+    const productsWithTimestamp = allProducts.map(product => ({
+      ...product,
+      lastUpdated: new Date()
+    }));
+    
+    // If no products were found, fall back to mock data
+    if (productsWithTimestamp.length === 0 && !sources.includes(PRODUCT_SOURCES.MOCK)) {
+      console.warn('No products found from external sources, falling back to mock data');
+      return fetchProductsFromSource(PRODUCT_SOURCES.MOCK, query, filters);
+    }
+    
+    return productsWithTimestamp;
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    return fetchProductsFromSource(PRODUCT_SOURCES.MOCK, query, filters);
+  }
+};
+
+/**
+ * Creates search query from user preferences
+ * 
+ * @param preferences User preferences
+ * @returns A search query string
+ */
+export const createSearchQuery = (preferences: any): string => {
+  const queryParts = [];
+  
+  if (preferences.category) {
+    queryParts.push(preferences.category);
+  }
+  
+  if (preferences.subCategory) {
+    queryParts.push(preferences.subCategory);
+  }
+  
+  if (preferences.dietary && preferences.dietary.length > 0) {
+    queryParts.push(...preferences.dietary);
+  }
+  
+  if (preferences.material) {
+    queryParts.push(preferences.material);
+  }
+  
+  if (preferences.occasion && preferences.occasion.length > 0) {
+    queryParts.push(preferences.occasion[0]);
+  }
+  
+  if (preferences.season && preferences.season.length > 0) {
+    queryParts.push(preferences.season[0]);
+  }
+  
+  if (preferences.keywords && preferences.keywords.length > 0) {
+    queryParts.push(...preferences.keywords);
+  }
+  
+  return queryParts.join(' ');
+};
+
+/**
+ * Creates filter options from user preferences
+ * 
+ * @param preferences User preferences
+ * @returns Filter options
+ */
+export const createFilterOptions = (preferences: any): Record<string, any> => {
+  const filters: Record<string, any> = {};
+  
+  if (preferences.category) {
+    filters.category = preferences.category;
+  }
+  
+  if (preferences.subCategory) {
+    filters.subCategory = preferences.subCategory;
+  }
+  
+  if (preferences.priceRange) {
+    filters.priceRange = preferences.priceRange;
+  }
+  
+  return filters;
+};
+
+/**
+ * Fetches products from a single source
+ * 
+ * @param source The data source to fetch from
+ * @param query The search query
+ * @param filters Additional filters to apply
+ * @returns A promise that resolves to an array of products from the source
+ */
+const fetchProductsFromSource = async (
+  source: string,
+  query: string,
+  filters: Record<string, any>
+): Promise<Product[]> => {
+  try {
+    const apiKey = API_KEYS[source];
+    const endpoint = API_ENDPOINTS[source];
+    
+    if (!apiKey || !endpoint) {
+      console.warn(`API key or endpoint not configured for source: ${source}`);
+      return [];
+    }
+
+    // Construct the API URL
+    const apiUrl = `${endpoint}/products/search`;
+
+    // Make the API call
+    const response = await axios.get(apiUrl, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      params: {
+        q: query,
+        ...filters
+      }
+    });
+
+    // Map the API response to our Product type
+    return mapApiResponseToProducts(response.data, source);
+  } catch (error) {
+    console.error(`Error fetching products from ${source}:`, error);
+    return [];
+  }
+};
+
+/**
+ * Maps API response data to our Product type
+ * 
+ * @param data The API response data
+ * @param source The product source
+ * @returns An array of products
+ */
+const mapApiResponseToProducts = (data: any, source: string): Product[] => {
+  // Each API has a different response format, so we need to map them differently
+  switch (source) {
+    case PRODUCT_SOURCES.AMAZON:
+      return mapAmazonProducts(data);
+    case PRODUCT_SOURCES.FLIPKART:
+      return mapFlipkartProducts(data);
+    case PRODUCT_SOURCES.MYNTRA:
+      return mapMyntraProducts(data);
+    case PRODUCT_SOURCES.BIGBASKET:
+      return mapBigBasketProducts(data);
+    default:
+      return [];
+  }
+};
+
+/**
+ * Maps Amazon API response to Product type
+ * This is a placeholder and would need to be implemented based on the actual API response format
+ */
+const mapAmazonProducts = (data: any): Product[] => {
+  try {
+    // Assuming data.items is an array of products
+    return (data.items || []).map((item: any) => ({
+      id: `amazon-${item.asin}`,
+      name: item.title,
+      price: parseInt(item.price.replace(/[^0-9]/g, '')),
+      category: mapAmazonCategory(item.category),
+      subCategory: mapAmazonSubCategory(item.category),
+      description: item.description || '',
+      image: item.imageUrl || '',
+      tags: item.keywords || [],
+      source: PRODUCT_SOURCES.AMAZON,
+      sourceId: item.asin,
+      sourceUrl: item.detailPageURL,
+      rating: item.rating,
+      reviewCount: item.reviewCount,
+      availability: item.availability,
+      lastUpdated: new Date(),
+      // Additional fields based on category
+      ...(mapAmazonCategory(item.category) === 'food' ? {
+        isVegan: item.features?.includes('vegan') || false,
+        isGlutenFree: item.features?.includes('gluten-free') || false,
+        dietaryInfo: extractDietaryInfo(item.features || '')
+      } : {}),
+      ...(mapAmazonCategory(item.category) === 'fashion' ? {
+        material: extractMaterial(item.features || ''),
+        season: extractSeasons(item.features || ''),
+        occasion: extractOccasions(item.features || '')
+      } : {})
+    }));
+  } catch (error) {
+    console.error('Error mapping Amazon products:', error);
+    return [];
+  }
+};
+
+/**
+ * Maps Flipkart API response to Product type
+ * This is a placeholder and would need to be implemented based on the actual API response format
+ */
+const mapFlipkartProducts = (data: any): Product[] => {
+  try {
+    // Assuming data.products is an array of products
+    return (data.products || []).map((item: any) => ({
+      id: `flipkart-${item.productId}`,
+      name: item.productName,
+      price: parseInt(item.price.replace(/[^0-9]/g, '')),
+      category: mapFlipkartCategory(item.category),
+      subCategory: mapFlipkartSubCategory(item.category),
+      description: item.description || '',
+      image: item.imageUrls?.[0] || '',
+      tags: extractTagsFromFlipkart(item),
+      source: PRODUCT_SOURCES.FLIPKART,
+      sourceId: item.productId,
+      sourceUrl: item.productUrl,
+      rating: item.rating,
+      reviewCount: item.reviewCount,
+      availability: item.availability,
+      lastUpdated: new Date(),
+      // Additional fields based on category
+      ...(mapFlipkartCategory(item.category) === 'food' ? {
+        isVegan: item.highlights?.some((h: string) => h.toLowerCase().includes('vegan')) || false,
+        isGlutenFree: item.highlights?.some((h: string) => h.toLowerCase().includes('gluten-free')) || false,
+        dietaryInfo: extractFlipkartDietaryInfo(item)
+      } : {}),
+      ...(mapFlipkartCategory(item.category) === 'fashion' ? {
+        material: extractFlipkartMaterial(item),
+        season: extractFlipkartSeasons(item),
+        occasion: extractFlipkartOccasions(item)
+      } : {})
+    }));
+  } catch (error) {
+    console.error('Error mapping Flipkart products:', error);
+    return [];
+  }
+};
+
+/**
+ * Maps Myntra API response to Product type
+ */
+const mapMyntraProducts = (data: any): Product[] => {
+  // Similar to above mappers, but for Myntra products
+  return [];
+};
+
+/**
+ * Maps BigBasket API response to Product type
+ */
+const mapBigBasketProducts = (data: any): Product[] => {
+  // Similar to above mappers, but for BigBasket products
+  return [];
+};
+
+// Helper functions for mapping categories and extracting attributes
+// These would need to be implemented based on the actual API response formats
+
+const mapAmazonCategory = (category: string): string => {
+  if (category.includes('Clothing') || category.includes('Shoes') || category.includes('Jewelry')) {
+    return 'fashion';
+  } else if (category.includes('Grocery') || category.includes('Food')) {
+    return 'food';
+  }
+  return 'other';
+};
+
+const mapAmazonSubCategory = (category: string): string => {
+  if (category.includes('Snacks')) {
+    return 'snacks';
+  } else if (category.includes('Breakfast')) {
+    return 'breakfast';
+  } else if (category.includes('Ethnic') || category.includes('Traditional')) {
+    return 'ethnic';
+  } else if (category.includes('Casual')) {
+    return 'casual';
+  }
+  return 'other';
+};
+
+const mapFlipkartCategory = (category: string): string => {
+  if (category.includes('Clothing') || category.includes('Footwear') || category.includes('Accessories')) {
+    return 'fashion';
+  } else if (category.includes('Food') || category.includes('Grocery')) {
+    return 'food';
+  }
+  return 'other';
+};
+
+const mapFlipkartSubCategory = (category: string): string => {
+  if (category.includes('Snacks')) {
+    return 'snacks';
+  } else if (category.includes('Breakfast')) {
+    return 'breakfast';
+  } else if (category.includes('Ethnic') || category.includes('Traditional')) {
+    return 'ethnic';
+  } else if (category.includes('Casual')) {
+    return 'casual';
+  }
+  return 'other';
+};
+
+const extractDietaryInfo = (features: string): string[] => {
+  const dietaryInfo = [];
+  const lowerFeatures = features.toLowerCase();
+  
+  if (lowerFeatures.includes('vegan')) dietaryInfo.push('vegan');
+  if (lowerFeatures.includes('gluten-free')) dietaryInfo.push('gluten-free');
+  if (lowerFeatures.includes('soy-free')) dietaryInfo.push('soy-free');
+  if (lowerFeatures.includes('dairy-free')) dietaryInfo.push('dairy-free');
+  if (lowerFeatures.includes('organic')) dietaryInfo.push('organic');
+  
+  return dietaryInfo;
+};
+
+const extractMaterial = (features: string): string => {
+  if (features.toLowerCase().includes('cotton')) return 'cotton';
+  if (features.toLowerCase().includes('linen')) return 'linen';
+  if (features.toLowerCase().includes('silk')) return 'silk';
+  if (features.toLowerCase().includes('polyester')) return 'polyester';
+  return '';
+};
+
+const extractSeasons = (features: string): string[] => {
+  const seasons = [];
+  const lowerFeatures = features.toLowerCase();
+  
+  if (lowerFeatures.includes('summer')) seasons.push('summer');
+  if (lowerFeatures.includes('winter')) seasons.push('winter');
+  if (lowerFeatures.includes('monsoon')) seasons.push('monsoon');
+  if (lowerFeatures.includes('spring')) seasons.push('spring');
+  if (lowerFeatures.includes('all season')) seasons.push('all');
+  
+  return seasons;
+};
+
+const extractOccasions = (features: string): string[] => {
+  const occasions = [];
+  const lowerFeatures = features.toLowerCase();
+  
+  if (lowerFeatures.includes('casual')) occasions.push('casual');
+  if (lowerFeatures.includes('festive')) occasions.push('festive');
+  if (lowerFeatures.includes('office') || lowerFeatures.includes('formal')) occasions.push('office');
+  if (lowerFeatures.includes('party')) occasions.push('party');
+  
+  return occasions;
+};
+
+// Flipkart-specific extraction functions
+const extractTagsFromFlipkart = (item: any): string[] => {
+  const tags: string[] = [];
+  
+  // Extract tags from highlights
+  if (item.highlights && Array.isArray(item.highlights)) {
+    item.highlights.forEach((highlight: string) => {
+      const words = highlight.toLowerCase().split(' ');
+      tags.push(...words.filter(word => word.length > 3));
+    });
+  }
+  
+  // Extract tags from specifications
+  if (item.specifications && Array.isArray(item.specifications)) {
+    item.specifications.forEach((spec: any) => {
+      if (spec.key && spec.value) {
+        tags.push(spec.value.toLowerCase());
+      }
+    });
+  }
+  
+  // Remove duplicates and limit to 10 tags
+  const uniqueTags = Array.from(new Set(tags)).slice(0, 10);
+  return uniqueTags;
+};
+
+const extractFlipkartDietaryInfo = (item: any): string[] => {
+  const dietaryInfo = [];
+  
+  // Extract from highlights
+  if (item.highlights && Array.isArray(item.highlights)) {
+    const highlightsText = item.highlights.join(' ').toLowerCase();
+    if (highlightsText.includes('vegan')) dietaryInfo.push('vegan');
+    if (highlightsText.includes('gluten-free')) dietaryInfo.push('gluten-free');
+    if (highlightsText.includes('organic')) dietaryInfo.push('organic');
+  }
+  
+  return dietaryInfo;
+};
+
+const extractFlipkartMaterial = (item: any): string => {
+  if (item.specifications && Array.isArray(item.specifications)) {
+    const materialSpec = item.specifications.find((spec: any) => 
+      spec.key.toLowerCase() === 'material' || spec.key.toLowerCase() === 'fabric'
+    );
+    
+    if (materialSpec && materialSpec.value) {
+      return materialSpec.value.toLowerCase();
+    }
+  }
+  
+  return '';
+};
+
+const extractFlipkartSeasons = (item: any): string[] => {
+  const seasons = [];
+  
+  if (item.specifications && Array.isArray(item.specifications)) {
+    const seasonSpec = item.specifications.find((spec: any) => 
+      spec.key.toLowerCase() === 'season' || spec.key.toLowerCase() === 'ideal for'
+    );
+    
+    if (seasonSpec && seasonSpec.value) {
+      const seasonValue = seasonSpec.value.toLowerCase();
+      if (seasonValue.includes('summer')) seasons.push('summer');
+      if (seasonValue.includes('winter')) seasons.push('winter');
+      if (seasonValue.includes('monsoon')) seasons.push('monsoon');
+      if (seasonValue.includes('all season')) seasons.push('all');
+    }
+  }
+  
+  return seasons;
+};
+
+const extractFlipkartOccasions = (item: any): string[] => {
+  const occasions = [];
+  
+  if (item.specifications && Array.isArray(item.specifications)) {
+    const occasionSpec = item.specifications.find((spec: any) => 
+      spec.key.toLowerCase() === 'occasion' || spec.key.toLowerCase() === 'suitable for'
+    );
+    
+    if (occasionSpec && occasionSpec.value) {
+      const occasionValue = occasionSpec.value.toLowerCase();
+      if (occasionValue.includes('casual')) occasions.push('casual');
+      if (occasionValue.includes('festive')) occasions.push('festive');
+      if (occasionValue.includes('formal') || occasionValue.includes('office')) occasions.push('office');
+      if (occasionValue.includes('party')) occasions.push('party');
+    }
+  }
+  
+  return occasions;
+};
+
+/**
+ * Fetches product details by ID
+ * 
+ * @param id The product ID
+ * @param source The product source (optional, will be inferred from ID if not provided)
+ * @returns A promise that resolves to the product details
+ */
+export const fetchProductById = async (id: string, source?: string): Promise<Product | null> => {
+  try {
+    // If source is not provided, try to infer it from the ID
+    if (!source && id.includes('-')) {
+      source = id.split('-')[0];
+    }
+    
+    // If source is still not available or not valid, check all sources
+    if (!source || !Object.values(PRODUCT_SOURCES).includes(source)) {
+      console.log('Source not specified or invalid, checking all sources');
+      
+      // For mock products, find in the local data
+      const mockProduct = mockProducts.find(product => product.id === id);
+      if (mockProduct) {
+        return {
+          ...mockProduct,
+          source: PRODUCT_SOURCES.MOCK,
+          lastUpdated: new Date()
+        };
+      }
+      
+      // For real sources, we'd need to check each one
+      // This is inefficient and would be better if we knew the source
+      // In a real implementation, you'd store the source with the ID
+      
+      return null;
+    }
+    
+    // For mock source, find in the local data
+    if (source === PRODUCT_SOURCES.MOCK) {
+      const productId = id.includes('-') ? id.split('-')[1] : id;
+      const mockProduct = mockProducts.find(product => product.id === productId);
+      
+      if (mockProduct) {
+        return {
+          ...mockProduct,
+          source: PRODUCT_SOURCES.MOCK,
+          lastUpdated: new Date()
+        };
+      }
+      
+      return null;
+    }
+    
+    // For real sources, make API calls
+    const apiKey = API_KEYS[source];
+    if (!apiKey) {
+      console.warn(`API key not found for source: ${source}`);
+      return null;
+    }
+
+    const endpoint = API_ENDPOINTS[source];
+    if (!endpoint) {
+      console.warn(`API endpoint not found for source: ${source}`);
+      return null;
+    }
+
+    // Extract the actual product ID from the combined ID
+    const productId = id.includes('-') ? id.split('-')[1] : id;
+    
+    // Construct the API URL based on the source
+    const apiUrl = `${endpoint}/products/${productId}`;
+
+    // Make the API call
+    const response = await axios.get(apiUrl, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    // Map the API response to our Product type
+    const products = mapApiResponseToProducts({ items: [response.data] }, source);
+    return products.length > 0 ? products[0] : null;
+  } catch (error) {
+    console.error(`Error fetching product details for ID ${id}:`, error);
+    return null;
+  }
+};

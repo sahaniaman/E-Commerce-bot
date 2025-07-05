@@ -1,0 +1,13 @@
+<svg width="400" height="300" viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="400" height="300" fill="#F2F7F2"/>
+  <rect x="120" y="80" width="160" height="120" rx="10" fill="#D8E8D8"/>
+  <circle cx="150" cy="110" r="15" fill="#7FB77E"/>
+  <circle cx="180" cy="110" r="15" fill="#7FB77E"/>
+  <circle cx="210" cy="110" r="15" fill="#7FB77E"/>
+  <circle cx="240" cy="110" r="15" fill="#7FB77E"/>
+  <circle cx="150" cy="150" r="15" fill="#7FB77E"/>
+  <circle cx="180" cy="150" r="15" fill="#7FB77E"/>
+  <circle cx="210" cy="150" r="15" fill="#7FB77E"/>
+  <circle cx="240" cy="150" r="15" fill="#7FB77E"/>
+  <text x="200" y="230" text-anchor="middle" font-family="Arial" font-size="16" fill="#7FB77E">Quinoa Energy Bites</text>
+</svg>

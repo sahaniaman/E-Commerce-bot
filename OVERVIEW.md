@@ -48,6 +48,25 @@ BharatShop AI is a sophisticated AI-powered shopping assistant that provides per
 - **Efficient Rendering**: Optimized component rendering to prevent unnecessary re-renders
 - **CSS-in-JS**: Used Material UI's styling solution for optimized CSS delivery
 
+### 6. Image Integration System
+- **SVG Product Images**: Created and integrated SVG-based product images for cleaner, scalable display
+- **Intelligent Image Path Resolution**: Built a system that automatically resolves image paths, preferring SVG formats
+- **Robust Fallback Mechanism**: Implemented error handling to use placeholder images when product images are unavailable
+- **Visual Category Enhancements**: Added visual cues based on product categories for a more cohesive UI
+- **Standardized Product Imagery**: Created a consistent visual style for product images
+
+### 7. Enhanced Chat Experience
+- **Culturally Relevant Welcome Message**: Added an Indian greeting (Namaste) to make the chat more culturally appropriate
+- **Conversation Starters**: Included guidance in the welcome message to help users get started
+- **Improved Bot Responses**: Enhanced the response generation to be more engaging and context-aware
+
+### 8. OpenAI Integration
+- **API Integration**: Integrated with OpenAI's API using secure environment variables
+- **Enhanced Recommendations**: Used OpenAI's GPT-3.5 to provide more contextually relevant product recommendations
+- **Query Analysis**: Leveraged OpenAI to analyze user queries and extract nuanced preferences
+- **Fallback Mechanism**: Implemented local recommendation engine as a fallback for reliability
+- **Secure Authentication**: Used environment variables to securely store API credentials
+
 ## Unique Selling Points
 - **Personalized Recommendations**: AI-powered engine that matches products based on user preferences
 - **Beautiful UI**: Modern, aesthetically pleasing interface with attention to detail
@@ -73,5 +92,6 @@ BharatShop AI is a sophisticated AI-powered shopping assistant that provides per
 - React Context API
 - CSS-in-JS
 - SVG for custom graphics
+- OpenAI GPT-3.5 API
 
 This project demonstrates a modern approach to e-commerce UIs with a focus on aesthetic design, user experience, and AI-powered recommendations specifically tailored for the Indian market.

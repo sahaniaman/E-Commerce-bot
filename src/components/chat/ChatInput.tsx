@@ -11,11 +11,16 @@ const ChatInput: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (input.trim()) {
-      sendMessage(input);
-      setInput('');
+      try {
+        await sendMessage(input);
+        setInput('');
+      } catch (error) {
+        console.error("Error sending message:", error);
+        // Could add error handling UI here if needed
+      }
     }
   };
 
@@ -26,8 +31,12 @@ const ChatInput: React.FC = () => {
     "Trendy casual wear under ₹1000"
   ];
 
-  const handleExampleClick = (query: string) => {
-    sendMessage(query);
+  const handleExampleClick = async (query: string) => {
+    try {
+      await sendMessage(query);
+    } catch (error) {
+      console.error("Error sending example query:", error);
+    }
   };
 
   return (

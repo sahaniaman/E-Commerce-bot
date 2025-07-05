@@ -1,0 +1,10 @@
+<svg width="400" height="300" viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="400" height="300" fill="#F5EFFF"/>
+  <rect x="100" y="80" width="200" height="140" rx="5" fill="#E1D4F5"/>
+  <rect x="120" y="100" width="160" height="100" rx="3" fill="#C9B6F0"/>
+  <path d="M120 130H280" stroke="#8E6CE6" stroke-width="2"/>
+  <path d="M120 170H280" stroke="#8E6CE6" stroke-width="2"/>
+  <circle cx="200" cy="75" r="15" fill="#8E6CE6"/>
+  <path d="M190 75L200 85L210 75" stroke="white" stroke-width="2"/>
+  <text x="200" y="230" text-anchor="middle" font-family="Arial" font-size="16" fill="#8E6CE6">Cotton Yoga Pants</text>
+</svg>

@@ -1,5 +1,7 @@
 import { Product, UserPreference } from '../types';
-import { products } from '../data/products';
+import { fetchProducts, PRODUCT_SOURCES, createSearchQuery, createFilterOptions } from '../services/productService';
+import { getSourceImageWithFallback } from './imageUtils';
+import { analyzeQuery } from '../services/gemini';
 
 // Keyword mapping for Indian context
 const keywordMap: Record<string, string[]> = {
@@ -336,31 +338,156 @@ const generateMatchReason = (product: Product, preferences: UserPreference): str
   }
 };
 
-export const getRecommendations = (message: string): Product[] => {
-  const preferences = extractPreferences(message);
+/**
+ * Calculate match score for a product based on user preferences
+ * 
+ * @param product The product to calculate match score for
+ * @param preferences User preferences
+ * @returns Object with matchPercentage and matchReason
+ */
+const calculateMatchScore = (product: Product, preferences: any): { matchPercentage: number, matchReason: string } => {
+  let score = 0;
+  let totalFactors = 0;
+  const matchReasons: string[] = [];
   
-  // Filter and rank products
-  const recommendedProducts = products.map(product => {
-    const matchPercentage = calculateMatchPercentage(product, preferences);
-    const matchReason = generateMatchReason(product, preferences);
+  // Check category match
+  if (preferences.category && product.category === preferences.category) {
+    score += 30;
+    totalFactors += 30;
+    matchReasons.push(`${preferences.category} category`);
+  }
+  
+  // Check sub-category match
+  if (preferences.subCategory && product.subCategory === preferences.subCategory) {
+    score += 20;
+    totalFactors += 20;
+    matchReasons.push(`${preferences.subCategory} products`);
+  }
+  
+  // Check price range match
+  if (preferences.priceRange && product.price <= preferences.priceRange.max) {
+    const priceScore = 15 - Math.min(15, Math.floor((product.price / preferences.priceRange.max) * 15));
+    score += priceScore;
+    totalFactors += 15;
+    matchReasons.push(`within your budget`);
+  }
+  
+  // Check dietary preferences
+  if (preferences.dietary && preferences.dietary.length > 0 && product.dietaryInfo) {
+    let dietaryMatches = 0;
+    for (const diet of preferences.dietary) {
+      if (product.dietaryInfo.includes(diet) || 
+          (diet === 'vegan' && product.isVegan) ||
+          (diet === 'gluten-free' && product.isGlutenFree)) {
+        dietaryMatches++;
+      }
+    }
     
-    return {
-      ...product,
-      matchPercentage,
-      matchReason
-    };
-  })
-  .filter(product => product.matchPercentage > 50) // Only show reasonable matches
-  .sort((a, b) => (b.matchPercentage || 0) - (a.matchPercentage || 0))
-  .slice(0, 4); // Get top 4 recommendations
+    if (dietaryMatches > 0) {
+      const dietaryScore = Math.min(15, Math.floor((dietaryMatches / preferences.dietary.length) * 15));
+      score += dietaryScore;
+      totalFactors += 15;
+      matchReasons.push(`matches your dietary preferences`);
+    }
+  }
   
-  return recommendedProducts.length > 0 
-    ? recommendedProducts 
-    : products
-        .slice(0, 4)
-        .map(product => ({
-          ...product,
-          matchPercentage: 50,
-          matchReason: 'Recommended based on popularity'
-        }));
+  // Check material preferences
+  if (preferences.material && preferences.material.length > 0 && product.material) {
+    if (preferences.material.includes(product.material)) {
+      score += 10;
+      totalFactors += 10;
+      matchReasons.push(`${product.material} material`);
+    }
+  }
+  
+  // Check season preferences
+  if (preferences.season && product.season && product.season.includes(preferences.season)) {
+    score += 10;
+    totalFactors += 10;
+    matchReasons.push(`perfect for ${preferences.season}`);
+  }
+  
+  // Check occasion preferences
+  if (preferences.occasion && product.occasion && product.occasion.includes(preferences.occasion)) {
+    score += 10;
+    totalFactors += 10;
+    matchReasons.push(`ideal for ${preferences.occasion} occasions`);
+  }
+  
+  // Calculate percentage
+  const matchPercentage = totalFactors > 0 ? Math.round((score / totalFactors) * 100) : 50;
+  
+  // Generate match reason
+  const matchReason = matchReasons.length > 0 
+    ? `Recommended because it ${matchReasons.slice(0, 2).join(' and ')}` 
+    : 'Recommended based on popularity';
+  
+  return {
+    matchPercentage,
+    matchReason
+  };
+};
+
+// Main function to get recommendations based on user message
+export const getRecommendations = async (message: string): Promise<Product[]> => {
+  try {
+    // Extract user preferences from message
+    const preferences = extractPreferences(message);
+    
+    // Get Gemini analysis for more sophisticated matching
+    const analysis = await analyzeQuery(message);
+    
+    // Combine manual and AI-based preferences
+    const combinedPreferences = {
+      ...preferences,
+      ...analysis
+    };
+    
+    // Create search query from preferences
+    const searchQuery = createSearchQuery(combinedPreferences);
+    
+    // Get filter options from preferences
+    const filters = createFilterOptions(combinedPreferences);
+    
+    // Fetch products using mock data only
+    const fetchedProducts = await fetchProducts(searchQuery, filters);
+    
+    // Calculate match score for each product
+    const recommendedProducts = fetchedProducts.map((product) => {
+      const { matchPercentage, matchReason } = calculateMatchScore(product, combinedPreferences);
+      return {
+        ...product,
+        matchPercentage,
+        matchReason,
+        image: getSourceImageWithFallback(product.image, product.source),
+      };
+    })
+    .filter((product) => product.matchPercentage > 50) // Only show reasonable matches
+    .sort((a, b) => (b.matchPercentage || 0) - (a.matchPercentage || 0))
+    .slice(0, 6); // Limit to top 6 recommendations
+    
+    // If no recommended products, fetch popular products as fallback
+    if (recommendedProducts.length === 0) {
+      // Fetch popular products from mock data
+      const popularProducts = await fetchProducts('popular', {});
+      return popularProducts.slice(0, 6).map((product) => ({
+        ...product,
+        matchPercentage: 50,
+        matchReason: 'Popular product you might like',
+        image: getSourceImageWithFallback(product.image, product.source),
+      }));
+    }
+    
+    return recommendedProducts;
+  } catch (error) {
+    console.error('Error generating recommendations:', error);
+    // Return fallback recommendations from mock data
+    const fallbackProducts = await fetchProducts('popular', {});
+    return fallbackProducts.slice(0, 6).map((product) => ({
+      ...product,
+      matchPercentage: 50,
+      matchReason: 'Popular product you might like',
+      image: getSourceImageWithFallback(product.image, product.source),
+    }));
+  }
 };

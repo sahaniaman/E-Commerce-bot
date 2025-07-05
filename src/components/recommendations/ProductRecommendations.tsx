@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Grid } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import ProductCard from './ProductCard';
 import { Product } from '../../types';
 import { motion } from 'framer-motion';
@@ -21,6 +21,19 @@ const ProductRecommendations: React.FC<ProductRecommendationsProps> = ({ product
   
   return (
     <Box>
+      {products.length > 0 && (
+        <Typography 
+          variant="subtitle1" 
+          sx={{ 
+            mb: 2, 
+            fontWeight: 600, 
+            color: 'primary.main',
+            textAlign: 'center' 
+          }}
+        >
+          Our Recommended Products For You
+        </Typography>
+      )}
       <motion.div
         variants={container}
         initial="hidden"

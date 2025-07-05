@@ -1,9 +1,12 @@
 import React from 'react';
-import { Card, CardContent, CardMedia, Typography, Box, Chip, Button, Tooltip } from '@mui/material';
+import { Card, CardContent, CardMedia, Typography, Box, Chip, Button, Tooltip, Badge } from '@mui/material';
 import { Product } from '../../types';
 import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
+import StarIcon from '@mui/icons-material/Star';
+import VerifiedIcon from '@mui/icons-material/Verified';
 import { motion } from 'framer-motion';
 import productPlaceholder from '../../assets/images/product-placeholder.svg';
+import { getProductImagePath, getSourceImageWithFallback } from '../../utils/imageUtils';
 
 interface ProductCardProps {
   product: Product;
@@ -69,17 +72,43 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, index }) => {
           </Tooltip>
         </Box>
         
+        {/* Source badge */}
+        {product.source && (
+          <Box sx={{ position: 'absolute', top: 12, left: 12, zIndex: 10 }}>
+            <Tooltip title={`Product from ${product.source}`} arrow>
+              <Chip
+                icon={<VerifiedIcon fontSize="small" />}
+                label={product.source}
+                size="small"
+                sx={{ 
+                  textTransform: 'capitalize',
+                  fontWeight: 600,
+                  borderRadius: '8px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                  border: '1px solid rgba(0, 0, 0, 0.12)',
+                }}
+              />
+            </Tooltip>
+          </Box>
+        )}
+        
         <CardMedia
           component="img"
           height="180"
-          image={product.image || productPlaceholder}
+          image={getSourceImageWithFallback(product.image, product.source)}
           alt={product.name}
           sx={{ 
-            objectFit: 'cover',
+            objectFit: 'contain',
+            padding: 2,
+            backgroundColor: 'rgba(255, 255, 255, 0.6)',
             transition: 'transform 0.6s ease',
             '&:hover': {
               transform: 'scale(1.05)',
             },
+          }}
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            target.src = productPlaceholder;
           }}
         />
         
@@ -112,6 +141,26 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, index }) => {
             >
               ₹{product.price.toLocaleString('en-IN')}
             </Typography>
+            
+            {/* Display rating if available */}
+            {product.rating && (
+              <Chip
+                icon={<StarIcon sx={{ color: '#FFD700 !important', fontSize: '1rem' }} />}
+                label={product.rating.toFixed(1)}
+                size="small"
+                sx={{ 
+                  height: '20px',
+                  ml: 1,
+                  '& .MuiChip-label': {
+                    px: 0.5,
+                    py: 0,
+                    fontSize: '0.7rem',
+                    fontWeight: 'bold'
+                  }
+                }}
+              />
+            )}
+            
             {product.price > 1000 && (
               <Typography 
                 variant="caption" 
@@ -125,6 +174,43 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, index }) => {
               </Typography>
             )}
           </Box>
+          
+          {/* Display source and additional info */}
+          {product.sourceUrl && (
+            <Box sx={{ mt: 1, mb: 2 }}>
+              <Typography 
+                variant="body2" 
+                color="text.secondary"
+                sx={{ 
+                  display: 'flex',
+                  alignItems: 'center',
+                  fontSize: '0.75rem',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {product.reviewCount && (
+                  <span style={{ marginRight: '8px' }}>{product.reviewCount} reviews</span>
+                )}
+                {product.availability && (
+                  <Chip 
+                    label={product.availability} 
+                    size="small"
+                    color={product.availability.toLowerCase().includes('available') ? 'success' : 'default'}
+                    sx={{ 
+                      height: '18px',
+                      '& .MuiChip-label': {
+                        px: 0.5,
+                        py: 0,
+                        fontSize: '0.7rem'
+                      }
+                    }}
+                  />
+                )}
+              </Typography>
+            </Box>
+          )}
           
           <Typography 
             variant="body2" 
@@ -175,6 +261,25 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, index }) => {
           >
             Add to Cart
           </Button>
+          
+          {/* Add view on source button for external products */}
+          {product.sourceUrl && (
+            <Button
+              variant="outlined"
+              color="primary"
+              fullWidth
+              sx={{ 
+                mt: 1,
+                borderRadius: '12px',
+                py: 1,
+                fontSize: '0.85rem',
+                textTransform: 'none'
+              }}
+              onClick={() => window.open(product.sourceUrl, '_blank')}
+            >
+              View on {product.source}
+            </Button>
+          )}
         </CardContent>
       </Card>
     </motion.div>
